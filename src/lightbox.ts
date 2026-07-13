@@ -23,20 +23,31 @@ export interface LightboxEventDetail {
 }
 
 export type LightboxEventCallback = (detail: LightboxEventDetail) => void;
+export type LightboxIconName = 'close' | 'prev' | 'next';
+export type LightboxIcons = Partial<Record<LightboxIconName, string>>;
 
 export interface LightboxOptions {
   selector?: string;
   springOpen?: SpringConfig;
   springClose?: SpringConfig;
   padding?: number;
+  icons?: LightboxIcons;
   debug?: boolean;
 }
+
+const DEFAULT_ICONS: Record<LightboxIconName, string> = {
+  close:
+    '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="4" y1="4" x2="12" y2="12"/><line x1="12" y1="4" x2="4" y2="12"/></svg>',
+  prev: '<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="12,4 6,10 12,16"/></svg>',
+  next: '<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="8,4 14,10 8,16"/></svg>',
+};
 
 const DEFAULTS: Required<LightboxOptions> = {
   selector: '[data-lightbox]',
   springOpen: SPRING_OPEN,
   springClose: SPRING_CLOSE,
   padding: 40,
+  icons: {},
   debug: false,
 };
 
@@ -304,7 +315,7 @@ export class Lightbox {
   /** Merge new options into the existing instance. Options are read lazily at
    *  open time, so this reconfigures the lightbox for subsequent opens. */
   configure(opts: LightboxOptions): this {
-    this.opts = { ...this.opts, ...opts };
+    this.opts = { ...this.opts, ...opts, icons: { ...this.opts.icons, ...opts.icons } };
     return this;
   }
 
@@ -3095,6 +3106,10 @@ export class Lightbox {
 
   // ─── Chrome UI ──────────────────────────────────────────────
 
+  private getIcon(name: LightboxIconName): string {
+    return this.opts.icons[name] || DEFAULT_ICONS[name];
+  }
+
   private createChrome(): void {
     if (!this.overlay) return;
 
@@ -3131,8 +3146,7 @@ export class Lightbox {
     close.className = 'lightbox3-close';
     close.setAttribute('aria-label', 'Close');
     close.type = 'button';
-    close.innerHTML =
-      '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="4" y1="4" x2="12" y2="12"/><line x1="12" y1="4" x2="4" y2="12"/></svg>';
+    close.innerHTML = this.getIcon('close');
     close.addEventListener('click', (e) => {
       e.stopPropagation();
       this.close();
@@ -3158,8 +3172,7 @@ export class Lightbox {
       prev.className = 'lightbox3-arrow lightbox3-arrow-prev';
       prev.setAttribute('aria-label', 'Previous image');
       prev.type = 'button';
-      prev.innerHTML =
-        '<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="12,4 6,10 12,16"/></svg>';
+      prev.innerHTML = this.getIcon('prev');
       prev.addEventListener('click', (e) => {
         e.stopPropagation();
         this.prev();
@@ -3173,8 +3186,7 @@ export class Lightbox {
       next.className = 'lightbox3-arrow lightbox3-arrow-next';
       next.setAttribute('aria-label', 'Next image');
       next.type = 'button';
-      next.innerHTML =
-        '<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="8,4 14,10 8,16"/></svg>';
+      next.innerHTML = this.getIcon('next');
       next.addEventListener('click', (e) => {
         e.stopPropagation();
         this.next();

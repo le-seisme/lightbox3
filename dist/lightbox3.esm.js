@@ -123,8 +123,6 @@ class Lightbox {
         this.dismiss = this.defaultDismissState();
         // rAF animation handle (single loop for all spring animations)
         this.rafId = null;
-        // Separate rAF for trigger bounce (runs independently after close)
-        this.bounceRafId = null;
         // Crop insets for object-fit:cover thumbnail animation (pixels in lightbox image space)
         this.cropInsets = { top: 0, right: 0, bottom: 0, left: 0 };
         // Border-radius of the thumbnail trigger (px), read on open for close morph
@@ -508,11 +506,6 @@ class Lightbox {
         if (this.state.isOpen || this.state.isAnimating)
             return;
         this.debugLog('open');
-        // Cancel any in-progress trigger bounce from a previous close
-        if (this.bounceRafId !== null) {
-            cancelAnimationFrame(this.bounceRafId);
-            this.bounceRafId = null;
-        }
         this.state.isOpen = true;
         this.state.isAnimating = true;
         this.state.triggerEl = triggerEl || null;
@@ -861,18 +854,7 @@ class Lightbox {
         if (thumbRect) {
             this.computeChromeDrift(thumbRect.x + thumbRect.width / 2, thumbRect.y + thumbRect.height / 2);
         }
-        const triggerEl = this.state.triggerEl;
-        let bounceFired = false;
-        const closeWhenInvisible = (s) => {
-            if (s.opacity < 0.01) {
-                if (!bounceFired && triggerEl) {
-                    bounceFired = true;
-                    this.bounceTrigger(triggerEl);
-                }
-                return true;
-            }
-            return false;
-        };
+        const closeWhenInvisible = (s) => s.opacity < 0.01;
         const currentBR = this.getTargetBorderRadius();
         if (!thumbRect || !this.isInViewport(thumbRect)) {
             this.animateSpring({ translateX: 0, translateY: 0, scale: 1, opacity: 1, crop: 0, borderRadius: currentBR }, { translateX: 0, translateY: 0, scale: 1, opacity: 0, crop: 0, borderRadius: currentBR }, this.opts.springClose, () => this.finishClose(), closeWhenInvisible);
@@ -944,38 +926,6 @@ class Lightbox {
             clearTimeout(this.wheelSnapBackTimer);
             this.wheelSnapBackTimer = null;
         }
-    }
-    /**
-     * "Catch" bounce: the trigger element squishes down slightly then
-     * springs back to normal scale, as if catching the lightbox image.
-     * Runs on its own rAF loop so it doesn't interfere with the main spring.
-     */
-    bounceTrigger(el) {
-        if (this.reducedMotion)
-            return; // Skip decorative bounce
-        if (this.bounceRafId !== null) {
-            cancelAnimationFrame(this.bounceRafId);
-            this.bounceRafId = null;
-        }
-        const config = { stiffness: 900, damping: 80, mass: 1 };
-        const spring = { position: 0.98, velocity: 0 };
-        const target = 1;
-        let lastTime = performance.now();
-        el.style.transform = `scale(${spring.position})`;
-        const tick = (now) => {
-            const dt = Math.min((now - lastTime) / 1000, 0.064);
-            lastTime = now;
-            const result = springStep(config, spring, target, dt);
-            spring.position = result.position;
-            spring.velocity = result.velocity;
-            el.style.transform = result.settled ? '' : `scale(${result.position})`;
-            if (result.settled) {
-                this.bounceRafId = null;
-                return;
-            }
-            this.bounceRafId = requestAnimationFrame(tick);
-        };
-        this.bounceRafId = requestAnimationFrame(tick);
     }
     // ─── Gallery navigation ────────────────────────────────────
     next() {
@@ -1926,18 +1876,9 @@ class Lightbox {
         // Don't use opacity alone: it may already be near 0 from the drag.
         // Tolerances are wide enough to survive spring overshoot from fast flicks
         // (at thumbnail scale, 20px of position error is a few pixels on screen).
-        const triggerEl = this.state.triggerEl;
-        let bounceFired = false;
-        const atThumbnail = (s) => {
-            const atTarget = Math.abs(s.scale - flipScale) < 0.05 &&
-                Math.abs(s.translateX - flipX) < 20 &&
-                Math.abs(s.translateY - flipY) < 20;
-            if (atTarget && !bounceFired && triggerEl) {
-                bounceFired = true;
-                this.bounceTrigger(triggerEl);
-            }
-            return atTarget;
-        };
+        const atThumbnail = (s) => Math.abs(s.scale - flipScale) < 0.05 &&
+            Math.abs(s.translateX - flipX) < 20 &&
+            Math.abs(s.translateY - flipY) < 20;
         // Parabolic arc: the axis with more velocity gets a softer spring,
         // so momentum carries it further while the cross-axis converges first.
         // This produces a natural curved path toward the thumbnail.
@@ -2336,18 +2277,9 @@ class Lightbox {
         const flipX = morphRect.x + morphRect.width / 2 - (fitRect.x + fitRect.width / 2);
         const flipY = morphRect.y + morphRect.height / 2 - (fitRect.y + fitRect.height / 2);
         const { flipScale, hasCrop } = this.computeFlipCrop(morphRect, fitRect, this.state.triggerEl, this.isTextLink);
-        const triggerEl = this.state.triggerEl;
-        let bounceFired = false;
-        const atThumbnail = (s) => {
-            const atTarget = Math.abs(s.scale - flipScale) < 0.05 &&
-                Math.abs(s.translateX - flipX) < 20 &&
-                Math.abs(s.translateY - flipY) < 20;
-            if (atTarget && !bounceFired && triggerEl) {
-                bounceFired = true;
-                this.bounceTrigger(triggerEl);
-            }
-            return atTarget;
-        };
+        const atThumbnail = (s) => Math.abs(s.scale - flipScale) < 0.05 &&
+            Math.abs(s.translateX - flipX) < 20 &&
+            Math.abs(s.translateY - flipY) < 20;
         this.animateSpring({ translateX: panX, translateY: panY, scale, opacity, crop: 0, borderRadius: currentBR }, {
             translateX: flipX,
             translateY: flipY,

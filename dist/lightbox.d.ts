@@ -52,7 +52,6 @@ export declare class Lightbox {
     private pinch;
     private dismiss;
     private rafId;
-    private bounceRafId;
     private cropInsets;
     private thumbBorderRadius;
     private isTextLink;
@@ -125,12 +124,6 @@ export declare class Lightbox {
     private stopFitTransition;
     close(): void;
     private finishClose;
-    /**
-     * "Catch" bounce: the trigger element squishes down slightly then
-     * springs back to normal scale, as if catching the lightbox image.
-     * Runs on its own rAF loop so it doesn't interfere with the main spring.
-     */
-    private bounceTrigger;
     next(): void;
     prev(): void;
     private navigateTo;

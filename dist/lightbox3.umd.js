@@ -900,7 +900,7 @@
             this.unlockBodyScroll();
             document.removeEventListener('keydown', this.handleKeydown);
             if (this.previouslyFocusedEl) {
-                this.previouslyFocusedEl.focus();
+                this.previouslyFocusedEl.focus({ preventScroll: true });
                 this.previouslyFocusedEl = null;
             }
             this.emit('closed');
@@ -3069,11 +3069,19 @@
         loadImage(src) {
             const cached = this.preloadCache.get(src);
             if (cached?.complete && cached.naturalWidth > 0) {
-                return Promise.resolve({ width: cached.naturalWidth, height: cached.naturalHeight });
+                return cached
+                    .decode()
+                    .catch(() => undefined)
+                    .then(() => ({ width: cached.naturalWidth, height: cached.naturalHeight }));
             }
             return new Promise((resolve) => {
                 const img = cached || new Image();
-                img.onload = () => resolve({ width: img.naturalWidth, height: img.naturalHeight });
+                img.onload = () => {
+                    void img
+                        .decode()
+                        .catch(() => undefined)
+                        .then(() => resolve({ width: img.naturalWidth, height: img.naturalHeight }));
+                };
                 img.onerror = () => resolve({ width: 800, height: 600 });
                 if (!cached) {
                     img.decoding = 'async';

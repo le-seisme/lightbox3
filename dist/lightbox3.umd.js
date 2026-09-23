@@ -736,7 +736,23 @@
                 // Full-res loaded after close started — don't reposition the image
                 if (this.state.isClosing || !this.state.isOpen)
                     return;
-                this.imgEl.src = src;
+                const image = this.imgEl;
+                const thumbSrc = image.currentSrc || image.src;
+                image.style.backgroundImage = `url(${JSON.stringify(thumbSrc)})`;
+                image.style.backgroundPosition = 'center';
+                image.style.backgroundRepeat = 'no-repeat';
+                image.style.backgroundSize = 'cover';
+                image.src = src;
+                void image.decode().then(() => {
+                    requestAnimationFrame(() => {
+                        if (this.imgEl !== image || this.state.currentSrc !== src)
+                            return;
+                        image.style.backgroundImage = '';
+                        image.style.backgroundPosition = '';
+                        image.style.backgroundRepeat = '';
+                        image.style.backgroundSize = '';
+                    });
+                }, () => undefined);
                 this.zoom.naturalWidth = size.width;
                 this.zoom.naturalHeight = size.height;
                 if (!this.zoom.zoomed) {
